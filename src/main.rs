@@ -35,7 +35,10 @@ enum Commands {
     #[structopt(name = "fetch", about = "fetch new prices for all assets")]
     Fetch,
     #[structopt(name = "list", about = "list all assets and their price")]
-    List,
+    List {
+        #[structopt(short = "v", long = "sort-by-value", help = "sorts the table by the value of the assets")]
+        order_by_value: bool
+    },
 }
 
 fn main() {
@@ -92,9 +95,17 @@ fn main() {
         Commands::Fetch => {
             assets.update_prices().expect("Error: could not update prices.");
         },
-        Commands::List => {
-            let asset_list = assets.list_assets()
+        Commands::List {
+            order_by_value,
+        } => {
+            let mut asset_list = assets.list_assets()
                 .expect("Error: could not list assets.");
+
+            if order_by_value {
+                asset_list.sort_by(|a, b|
+                    (b.2 * b.3).partial_cmp(&(a.2 * a.3)).expect("values shouldn't be NaN or inf")
+                );
+            }
 
             let sum: f32 = asset_list.iter()
                 .map(|asset| asset.2 * asset.3)
