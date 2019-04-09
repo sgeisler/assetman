@@ -105,17 +105,26 @@ fn main() {
             for (_, name, price, amount) in asset_list {
                 table.add_row(row![
                     name,
-                    format!("{:.2}", amount),
-                    format!("{:.2}", price),
-                    format!("{:.2}", amount * price),
+                    r -> format_money(amount),
+                    r -> format_money(price),
+                    r -> format_money(amount * price),
                 ]);
             }
 
             table.add_empty_row();
-            table.add_row(row!("Sum", "", "", format!("{:.2}", sum)));
+            table.add_row(row!("Sum", "", "", r -> format_money(sum)));
 
             table.set_format(*prettytable::format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
             table.printstd();
         },
     }
+}
+
+fn format_money(amount: f32) -> String {
+    let mut base = format!("{:.2}", amount);
+    if base.len() > 6 {
+        base.insert(base.len() - 6, '\'');
+    }
+
+    base
 }
