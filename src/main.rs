@@ -5,6 +5,7 @@ extern crate structopt;
 
 use assetman::Error;
 use structopt::StructOpt;
+use std::collections::btree_set::BTreeSet;
 
 #[derive(StructOpt)]
 #[structopt(name = "assets", about = "manage assets and track their price")]
@@ -26,6 +27,8 @@ enum Commands {
         quandl_dataset: String,
         quandl_price_idx: u16,
         description: Option<String>,
+        #[structopt(short = "c", long = "category", help = "sets the asset's category")]
+        category: Option<String>,
     },
     #[structopt(name = "update", about = "update the amount of an asset")]
     Update {
@@ -37,7 +40,9 @@ enum Commands {
     #[structopt(name = "list", about = "list all assets and their price")]
     List {
         #[structopt(short = "v", long = "sort-by-value", help = "sorts the table by the value of the assets")]
-        order_by_value: bool
+        order_by_value: bool,
+        #[structopt(short = "c", long = "group-by-category", help = "show assets grouped by category")]
+        group_by_category: bool,
     },
 }
 
@@ -65,6 +70,7 @@ fn main() {
             quandl_dataset,
             quandl_price_idx,
             description,
+            category,
         } => {
             let description_ref = &description;
             assets.add_asset(
@@ -72,7 +78,8 @@ fn main() {
                 description_ref.as_ref().map(|s| s.as_str()),
                 &quandl_database,
                 &quandl_dataset,
-                quandl_price_idx
+                quandl_price_idx,
+                category.as_ref().map(String::as_str)
             ).expect("Error: Couldn't add asset.");
         },
         Commands::Update {
@@ -97,6 +104,7 @@ fn main() {
         },
         Commands::List {
             order_by_value,
+            group_by_category
         } => {
             let mut asset_list = assets.list_assets()
                 .expect("Error: could not list assets.");
@@ -113,17 +121,48 @@ fn main() {
 
             let mut table = prettytable::Table::new();
             table.set_titles(row!["Asset", "Holdings", "Price", "Value"]);
-            for (_, name, price, amount) in asset_list {
-                table.add_row(row![
-                    name,
-                    r -> format_money(amount),
-                    r -> format_money(price),
-                    r -> format_money(amount * price),
-                ]);
+
+            if group_by_category {
+                let asset_types = asset_list.iter()
+                    .map(|(_, _, _, _, t)| t.as_str())
+                    .collect::<BTreeSet<_>>();
+
+                for asset_type in asset_types {
+                    table.add_empty_row();
+                    table.add_row(row!(asset_type, "", "", ""));
+
+                    let assets = asset_list.iter()
+                        .filter(|(_, _, _, _, t)| t == asset_type)
+                        .collect::<Vec<_>>();
+
+                    let cat_sum: f32 = assets.iter()
+                        .map(|(_, _, price, amount, _)| price * amount)
+                        .sum();
+
+                    for (_, name, price, amount, _) in assets {
+                        table.add_row(row![
+                            name,
+                            r -> format_money(*amount),
+                            r -> format_money(*price),
+                            r -> format_money((*amount) * (*price)),
+                        ]);
+                    }
+
+                    table.add_row(row!(b -> "Category Sum", "", "", br -> format_money(cat_sum)));
+                }
+            } else {
+                for (_, name, price, amount, _) in asset_list {
+                    table.add_row(row![
+                        name,
+                        r -> format_money(amount),
+                        r -> format_money(price),
+                        r -> format_money(amount * price),
+                    ]);
+                }
             }
 
             table.add_empty_row();
-            table.add_row(row!("Sum", "", "", r -> format_money(sum)));
+            table.add_row(row!(b -> "Sum", "", "", br -> format_money(sum)));
 
             table.set_format(*prettytable::format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
             table.printstd();

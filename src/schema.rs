@@ -6,6 +6,7 @@ table! {
         quandl_database -> Nullable<Text>,
         quandl_dataset -> Nullable<Text>,
         quandl_price_idx -> Nullable<Integer>,
+        category -> Text,
     }
 }
 

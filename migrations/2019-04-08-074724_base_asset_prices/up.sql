@@ -5,6 +5,7 @@ CREATE TABLE assets (
   quandl_database TEXT,
   quandl_dataset TEXT,
   quandl_price_idx INTEGER,
+  category TEXT default 'default',
   -- Either a quandl price source is defined or not (in case of base currency)
   CONSTRAINT quandl_all_or_nothing CHECK (
     ((quandl_database IS NULL) = (quandl_dataset IS NULL)) AND

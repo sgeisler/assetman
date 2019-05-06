@@ -37,7 +37,7 @@ impl Assets {
         Ok(())
     }
 
-    pub fn list_assets(&self) -> diesel::QueryResult<Vec<(i32, String, f32, f32)>> {
+    pub fn list_assets(&self) -> diesel::QueryResult<Vec<(i32, String, f32, f32, String)>> {
         // select
         //  assets.id
         //  assets.name,
@@ -53,7 +53,7 @@ impl Assets {
         schema::assets::table
             .inner_join(schema::updates::table)
             .inner_join(schema::prices::table)
-            .select((schema::assets::id, schema::assets::name, schema::prices::price, schema::updates::holdings))
+            .select((schema::assets::id, schema::assets::name, schema::prices::price, schema::updates::holdings, schema::assets::category))
             .filter(
                 schema::updates::timestamp.eq(diesel::dsl::sql::<diesel::sql_types::Timestamp>("(SELECT MAX(timestamp) FROM updates WHERE assets.id = updates.asset_id)")).and(
                     schema::prices::timestamp.eq(diesel::dsl::sql::<diesel::sql_types::Timestamp>("(SELECT MAX(timestamp) FROM prices WHERE assets.id = prices.asset_id)"))
@@ -63,7 +63,7 @@ impl Assets {
             .load(&self.db_client)
     }
 
-    pub fn add_asset(&self, name: &str, description: Option<&str>, quandl_database: &str, quandl_dataset: &str, quandl_idx: u16) -> Result<Asset, Error> {
+    pub fn add_asset(&self, name: &str, description: Option<&str>, quandl_database: &str, quandl_dataset: &str, quandl_idx: u16, category: Option<&str>) -> Result<Asset, Error> {
         self.db_client.transaction(|| {
             let price = self.qunadl_client.query_last(
                 quandl_database,
@@ -78,6 +78,7 @@ impl Assets {
                     quandl_database,
                     quandl_dataset,
                     quandl_price_idx: quandl_idx as i32,
+                    category,
                 }).execute(&self.db_client)?;
 
             let asset_id: i32 = schema::assets::table
@@ -181,6 +182,7 @@ struct NewAsset<'a> {
     quandl_database: &'a str,
     quandl_dataset: &'a str,
     quandl_price_idx: i32,
+    category: Option<&'a str>,
 }
 
 #[derive(Insertable)]
