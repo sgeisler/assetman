@@ -129,7 +129,7 @@ fn main() {
 
                 for asset_type in asset_types {
                     table.add_empty_row();
-                    table.add_row(row!(asset_type, "", "", ""));
+                    table.add_row(row!(bFy -> asset_type, "", "", ""));
 
                     let assets = asset_list.iter()
                         .filter(|(_, _, _, _, t)| t == asset_type)
