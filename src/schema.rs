@@ -3,9 +3,7 @@ table! {
         id -> Integer,
         name -> Text,
         description -> Nullable<Text>,
-        quandl_database -> Nullable<Text>,
-        quandl_dataset -> Nullable<Text>,
-        quandl_price_idx -> Nullable<Integer>,
+        query -> Text,
         category -> Text,
     }
 }

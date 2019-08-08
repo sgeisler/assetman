@@ -14,8 +14,8 @@ struct Options {
     command: Commands,
     #[structopt(short = "d", long = "database", help = "path to database (env: ASSET_DATABASE)")]
     db_path: Option<String>,
-    #[structopt(short = "q", long = "quandl-token", help = "quandl token to query price data (env: ASSET_QUANDL_TOKEN)")]
-    quandl_token: Option<String>,
+    #[structopt(short = "a", long = "api-key", help = "Alpha Vantage API token to query price data (env: ALPHA_VANTAGE_KEY)")]
+    api_key: Option<String>,
 }
 
 #[derive(StructOpt)]
@@ -23,9 +23,7 @@ enum Commands {
     #[structopt(name = "add", about = "add a new asset that should be tracked")]
     Add {
         name: String,
-        quandl_database: String,
-        quandl_dataset: String,
-        quandl_price_idx: u16,
+        query: String,
         description: Option<String>,
         #[structopt(short = "c", long = "category", help = "sets the asset's category")]
         category: Option<String>,
@@ -54,21 +52,19 @@ fn main() {
         .ok()
         .or(options.db_path)
         .expect("No database is set!");
-    let quandl_token = std::env::var("ASSET_QUANDL_TOKEN")
+    let av_api_key = std::env::var("ALPHA_VANTAGE_KEY")
         .ok()
-        .or(options.quandl_token)
-        .expect("No quandl API token is set!");
+        .or(options.api_key)
+        .expect("No Alpha Vantage API key is set!");
 
-    let assets = assetman::Assets::new(&db_path, &quandl_token)
+    let assets = assetman::Assets::new(&db_path, &av_api_key)
         .expect("Could not open database.");
 
 
     match options.command {
         Commands::Add {
             name,
-            quandl_database,
-            quandl_dataset,
-            quandl_price_idx,
+            query,
             description,
             category,
         } => {
@@ -76,9 +72,7 @@ fn main() {
             assets.add_asset(
                 &name,
                 description_ref.as_ref().map(|s| s.as_str()),
-                &quandl_database,
-                &quandl_dataset,
-                quandl_price_idx,
+                &query,
                 category.as_ref().map(String::as_str)
             ).expect("Error: Couldn't add asset.");
         },

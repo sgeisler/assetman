@@ -2,29 +2,28 @@ extern crate chrono;
 extern crate dotenv;
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
-extern crate quandl_v3;
+extern crate reqwest;
+extern crate serde_json;
 
 use diesel::prelude::*;
-use diesel::query_dsl::*;
-use quandl_v3::prelude::*;
 
 use schema::*;
 
-pub mod quandl;
+pub mod alphav;
 mod schema;
 
 embed_migrations!();
 
 pub struct Assets {
     db_client: diesel::sqlite::SqliteConnection,
-    qunadl_client: quandl::QuandlClient,
+    av_client: alphav::AlphaVantageClient,
 }
 
 impl Assets {
-    pub fn new(db_path: &str, quandl_api_key: &str) -> Result<Assets, Error> {
+    pub fn new(db_path: &str, av_api_key: &str) -> Result<Assets, Error> {
         let assets = Assets {
             db_client: diesel::SqliteConnection::establish(db_path)?,
-            qunadl_client: quandl::QuandlClient::new(quandl_api_key.into()),
+            av_client: alphav::AlphaVantageClient::new(av_api_key.into()),
         };
 
         assets.run_migrations()?;
@@ -63,21 +62,15 @@ impl Assets {
             .load(&self.db_client)
     }
 
-    pub fn add_asset(&self, name: &str, description: Option<&str>, quandl_database: &str, quandl_dataset: &str, quandl_idx: u16, category: Option<&str>) -> Result<Asset, Error> {
+    pub fn add_asset(&self, name: &str, description: Option<&str>, query: &str, category: Option<&str>) -> Result<Asset, Error> {
         self.db_client.transaction(|| {
-            let price = self.qunadl_client.query_last(
-                quandl_database,
-                quandl_dataset,
-                quandl_idx as usize
-            )?;
+            let price = self.av_client.query(query)?;
 
             diesel::insert_into(schema::assets::table)
                 .values(NewAsset {
                     name,
                     description,
-                    quandl_database,
-                    quandl_dataset,
-                    quandl_price_idx: quandl_idx as i32,
+                    query,
                     category,
                 }).execute(&self.db_client)?;
 
@@ -134,21 +127,17 @@ impl Assets {
     pub fn update_prices(&self) -> Result<(), Error> {
         self.db_client.transaction(|| {
             let assets: Vec<UpdateAsset> = schema::assets::table
-                .filter(schema::assets::quandl_database.is_not_null())
                 .select((
                     schema::assets::id,
-                    schema::assets::quandl_database,
-                    schema::assets::quandl_dataset,
-                    schema::assets::quandl_price_idx
+                    schema::assets::query,
+                    schema::assets::name,
                 ))
                 .load(&self.db_client)?;
 
-            for asset in assets {
-                let price = self.qunadl_client.query_last(
-                    &asset.quandl_database.expect("not possible due to query and constraints"),
-                    &asset.quandl_dataset.expect("not possible due to query and constraints"),
-                    asset.quandl_price_idx.expect("not possible due to query and constraints") as usize
-                )?;
+            let asset_count = assets.len();
+            for (idx, asset) in assets.into_iter().enumerate() {
+                println!("Fetching price for {:25} ({}/{})", asset.name, idx, asset_count);
+                let price = self.av_client.query(&asset.query)?;
 
                 diesel::insert_into(schema::prices::table)
                     .values(NewPriceEntry {
@@ -179,9 +168,7 @@ impl<'a> Asset<'a> {
 struct NewAsset<'a> {
     name: &'a str,
     description: Option<&'a str>,
-    quandl_database: &'a str,
-    quandl_dataset: &'a str,
-    quandl_price_idx: i32,
+    query: &'a str,
     category: Option<&'a str>,
 }
 
@@ -202,9 +189,8 @@ struct NewHoldingsEntry {
 #[derive(Queryable)]
 struct UpdateAsset {
     id: i32,
-    quandl_database: Option<String>,
-    quandl_dataset: Option<String>,
-    quandl_price_idx: Option<i32>,
+    query: String,
+    name: String,
 }
 
 #[derive(Debug)]
@@ -213,12 +199,12 @@ pub enum Error {
     DatabaseConnectionError(diesel::ConnectionError),
     DatabaseError(diesel::result::Error),
     DatabaseMigrationError(diesel_migrations::RunMigrationsError),
-    QuandlError(quandl::Error),
+    AlphaVantageError(alphav::AlphaVantageError),
 }
 
-impl From<quandl::Error> for Error {
-    fn from(e: quandl::Error) -> Self {
-        Error::QuandlError(e)
+impl From<alphav::AlphaVantageError> for Error {
+    fn from(e: alphav::AlphaVantageError) -> Self {
+        Error::AlphaVantageError(e)
     }
 }
 
@@ -251,8 +237,8 @@ mod tests {
     fn add_assets() {
         dotenv::dotenv().ok();
 
-        let api_token = std::env::var("QUANDL_TOKEN")
-            .expect("QUANDL_TOKEN must be set");
+        let api_token = std::env::var("ALPHA_VANTAGE_KEY")
+            .expect("ALPHA_VANTAGE_KEY must be set");
 
         let assets = super::Assets::new(":memory:", &api_token).unwrap();
         crate::embedded_migrations::run(&assets.db_client).unwrap();
@@ -260,9 +246,8 @@ mod tests {
         let siemens_ref = assets.add_asset(
             "Siemens",
             None,
-            "FSE",
-            "SIE_X",
-            4
+            "stock/SIE/EUR",
+            Some("stock")
         ).unwrap();
 
         let asset_list = assets.list_assets().unwrap();
