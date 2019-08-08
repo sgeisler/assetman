@@ -48,7 +48,8 @@ impl Assets {
         //  prices on assets.id = prices.asset_id
         // where
         //  updates.timestamp=(select max(timestamp) from updates where updates.asset_id=assets.id) and
-        //  Wprices.timestamp=(select max(timestamp) from prices where prices.asset_id=assets.id);
+        //  prices.timestamp=(select max(timestamp) from prices where prices.asset_id=assets.id) and
+        //  updates.amount != 0;
         schema::assets::table
             .inner_join(schema::updates::table)
             .inner_join(schema::prices::table)
@@ -56,7 +57,7 @@ impl Assets {
             .filter(
                 schema::updates::timestamp.eq(diesel::dsl::sql::<diesel::sql_types::Timestamp>("(SELECT MAX(timestamp) FROM updates WHERE assets.id = updates.asset_id)")).and(
                     schema::prices::timestamp.eq(diesel::dsl::sql::<diesel::sql_types::Timestamp>("(SELECT MAX(timestamp) FROM prices WHERE assets.id = prices.asset_id)"))
-                )
+                ).and(schema::updates::holdings.ne(0.0))
             )
             .order_by(schema::assets::name)
             .load(&self.db_client)
