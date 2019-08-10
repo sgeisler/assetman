@@ -42,6 +42,8 @@ enum Commands {
         #[structopt(short = "c", long = "group-by-category", help = "show assets grouped by category")]
         group_by_category: bool,
     },
+    #[structopt(name = "plot", about = "plots the historical value development")]
+    Plot,
 }
 
 fn main() {
@@ -161,6 +163,9 @@ fn main() {
             table.set_format(*prettytable::format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
             table.printstd();
         },
+        Commands::Plot => {
+            assets.plot();
+        }
     }
 }
 

@@ -4,6 +4,7 @@ extern crate dotenv;
 #[macro_use] extern crate diesel_migrations;
 extern crate reqwest;
 extern crate serde_json;
+extern crate textplots;
 
 use diesel::prelude::*;
 
@@ -150,6 +151,59 @@ impl Assets {
 
             Ok(())
         })
+    }
+
+    pub fn plot(&self) {
+        use textplots::Plot;
+        use terminal_size::{Width, Height, terminal_size};
+
+        let time_series = diesel::dsl::sql::<(diesel::sql_types::Timestamp, diesel::sql_types::Float)>(
+                "select ts,
+                       (
+                         select SUM(updates.holdings * prices.price)
+                         from assets
+                                join updates on assets.id = updates.asset_id
+                                join prices on assets.id = prices.asset_id
+                         where updates.timestamp = (select max(timestamp) from updates where updates.asset_id = assets.id and updates.timestamp <= ts)
+                           and prices.timestamp = (select max(timestamp) from prices where prices.asset_id = assets.id and prices.timestamp <= ts)
+                           and updates.holdings != 0
+                       ) as nw
+                from (select prices.timestamp as ts from prices union select updates.timestamp as ts from updates)
+                where nw not null;
+                "
+            )
+            .load(&self.db_client)
+            .unwrap()
+            .into_iter()
+            .skip(5)
+            .map(|(t, v): (chrono::NaiveDateTime, f32)| (t.timestamp() as f32, v))
+            .collect::<Vec<_>>();
+
+        let x_min = time_series
+            .iter()
+            .min_by(|(t1, _), (t2, _)| t1.partial_cmp(t2).unwrap())
+            .unwrap()
+            .0;
+
+        let x_max = time_series
+            .iter()
+            .max_by(|(t1, _), (t2, _)| t1.partial_cmp(t2).unwrap())
+            .unwrap()
+            .0;
+
+        println!("{:?}", terminal_size());
+
+        let (width, height) = if let Some((Width(width), Height(height))) = terminal_size() {
+            (std::cmp::max(width * 3 / 2, 32), std::cmp::max(height * 3, 32))
+        } else {
+            (200, 100)
+        };
+
+        println!("{}, {}", width, height);
+
+        textplots::Chart::new(width as u32, height as u32, x_min, x_max)
+            .lineplot(textplots::Shape::Lines(&time_series))
+            .nice();
     }
 }
 
