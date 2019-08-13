@@ -116,16 +116,16 @@ fn main() {
                 .sum();
 
             let mut table = prettytable::Table::new();
-            table.set_titles(row!["Asset", "Holdings", "Price", "Value"]);
 
             if group_by_category {
+                table.set_titles(row!["Asset", "Holdings", "Price", "Value", "Rel"]);
                 let asset_types = asset_list.iter()
                     .map(|(_, _, _, _, t)| t.as_str())
                     .collect::<BTreeSet<_>>();
 
                 for asset_type in asset_types {
                     table.add_empty_row();
-                    table.add_row(row!(bFy -> asset_type, "", "", ""));
+                    table.add_row(row!(bFy -> asset_type, "", "", "", ""));
 
                     let assets = asset_list.iter()
                         .filter(|(_, _, _, _, t)| t == asset_type)
@@ -141,12 +141,14 @@ fn main() {
                             r -> format_money(*amount),
                             r -> format_money(*price),
                             r -> format_money((*amount) * (*price)),
+                            r -> ""
                         ]);
                     }
 
-                    table.add_row(row!(b -> "Category Sum", "", "", br -> format_money(cat_sum)));
+                    table.add_row(row!(b -> "Category Sum", "", "", br -> format_money(cat_sum), format!("{:.1}%", cat_sum / sum * 100.0)));
                 }
             } else {
+                table.set_titles(row!["Asset", "Holdings", "Price", "Value"]);
                 for (_, name, price, amount, _) in asset_list {
                     table.add_row(row![
                         name,
