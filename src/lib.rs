@@ -139,14 +139,19 @@ impl Assets {
             let asset_count = assets.len();
             for (idx, asset) in assets.into_iter().enumerate() {
                 println!("Fetching price for {:25} ({}/{})", asset.name, idx, asset_count);
-                let price = self.av_client.query(&asset.query)?;
-
-                diesel::insert_into(schema::prices::table)
-                    .values(NewPriceEntry {
-                        asset_id: asset.id,
-                        price: price as f32,
-                    })
-                    .execute(&self.db_client)?;
+                match self.av_client.query(&asset.query) {
+                    Ok(price) => {
+                        diesel::insert_into(schema::prices::table)
+                            .values(NewPriceEntry {
+                                asset_id: asset.id,
+                                price: price as f32,
+                            })
+                            .execute(&self.db_client)?;
+                    },
+                    Err(e) => {
+                        eprintln!("Skipping {} because of error {:?}", asset.query, e);
+                    },
+                }
             }
 
             Ok(())

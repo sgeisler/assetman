@@ -107,7 +107,7 @@ impl AlphaVantageClient {
             .map_err(|_| AlphaVantageError::MalformedApiResponse("Returned price isn't a float"))
     }
 
-    pub fn query(&self, query: &str) -> Result<f64, AlphaVantageError> {
+    fn query_inner(&self, query: &str) -> Result<f64, AlphaVantageError> {
         let mut query_parts = query.split('/');
         match query_parts.next() {
             Some("stock") => {
@@ -134,6 +134,14 @@ impl AlphaVantageClient {
             }
             None | Some(_) => Err(AlphaVantageError::MalformedQuery)
         }
+    }
+
+    pub fn query(&self, query: &str) -> Result<f64, AlphaVantageError> {
+        let res = self.query_inner(query);
+        if res.is_err() {
+            eprintln!("Couldn't fetch '{}'", query);
+        }
+        res
     }
 }
 
