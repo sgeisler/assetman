@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 pub mod holdings;
 pub mod price;
 
