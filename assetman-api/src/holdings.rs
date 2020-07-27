@@ -13,5 +13,6 @@ pub struct HoldingsAnswer {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PluginInfo {
+    pub name: String,
     pub description: String,
 }

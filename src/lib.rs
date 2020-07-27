@@ -11,6 +11,7 @@ use diesel::prelude::*;
 use schema::*;
 
 pub mod alphav;
+mod plugins;
 mod schema;
 
 embed_migrations!();

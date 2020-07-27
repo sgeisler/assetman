@@ -3,6 +3,7 @@ with import <nixpkgs> {};
 stdenv.mkDerivation rec {
     name = "rust";
     buildInputs = [
+	    zlib
         sqlite
         openssl
         pkg-config
