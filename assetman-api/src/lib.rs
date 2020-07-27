@@ -3,6 +3,6 @@ pub mod price;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Error {
-    code: u64,
-    description: String,
+    pub code: u64,
+    pub description: String,
 }

@@ -1,15 +1,15 @@
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HoldingsRequest {
-    arguments: String,
+    pub arguments: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HoldingsAnswer {
-    req: HoldingsRequest,
-    holdings: f64,
+    pub req: HoldingsRequest,
+    pub holdings: f64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PluginInfo {
-    description: String,
+    pub description: String,
 }
