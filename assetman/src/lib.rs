@@ -196,6 +196,22 @@ impl Assets {
     }
 }
 
+impl AssetsCfg {
+    pub fn from_env() -> Result<Self, &'static str> {
+        let database = dotenv::var("AM_DATABASE").map_err(|_| "AM_DATABASE not set!")?;
+        let plugins = dotenv::var("AM_PLUGINS")
+            .map_err(|_| "AM_PLUGINS not set!")?
+            .split(":")
+            .map(PathBuf::from)
+            .collect::<Vec<_>>();
+
+        Ok(AssetsCfg {
+            db_path: database,
+            plugins,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub enum Error {
     AssetNotFound,
