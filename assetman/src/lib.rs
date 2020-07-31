@@ -12,6 +12,7 @@ use diesel::deserialize::Queryable;
 use diesel::prelude::*;
 
 use crate::plugins::{PluginError, Plugins};
+use assetman_api::PluginType::{Holdings, Price};
 use chrono::NaiveDateTime;
 use diesel::dsl::max;
 use diesel::select;
@@ -47,6 +48,40 @@ pub struct Asset {
     price: f64,
     holdings: f64,
     category: String,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "assets"]
+struct InsertAsset<'a> {
+    name: &'a str,
+    price_query: &'a str,
+    holdings_query: &'a str,
+    category: &'a str,
+}
+
+#[derive(Debug, Queryable)]
+struct QueryAsset {
+    id: i32,
+    name: String,
+    price_query: String,
+    holdings_query: String,
+    category: String,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "holdings"]
+struct InsertHoldings {
+    update_id: i32,
+    asset_id: i32,
+    amount: f64,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "prices"]
+struct InsertPrices {
+    update_id: i32,
+    asset_id: i32,
+    price: f64,
 }
 
 impl Assets {
@@ -96,37 +131,70 @@ impl Assets {
             assets,
         })
     }
-}
-/*
-#[derive(Insertable)]
-#[table_name = "assets"]
-struct NewAsset<'a> {
-    name: &'a str,
-    description: Option<&'a str>,
-    query: &'a str,
-    category: Option<&'a str>,
-}
 
-#[derive(Insertable)]
-#[table_name = "prices"]
-struct NewPriceEntry {
-    asset_id: i32,
-    price: f32,
-}
+    pub fn add_asset(
+        &mut self,
+        name: &str,
+        category: &str,
+        price_query: &str,
+        holdings_query: &str,
+    ) -> Result<(), Error> {
+        let _ = self.plugins.query(price_query, Price)?;
+        let _ = self.plugins.query(holdings_query, Holdings)?;
 
-#[derive(Insertable)]
-#[table_name = "updates"]
-struct NewHoldingsEntry {
-    asset_id: i32,
-    holdings: f32,
-}
+        diesel::insert_into(schema::assets::table)
+            .values(InsertAsset {
+                name,
+                price_query,
+                holdings_query,
+                category,
+            })
+            .execute(&self.db_client)?;
 
-#[derive(Queryable)]
-struct UpdateAsset {
-    id: i32,
-    query: String,
-    name: String,
-}*/
+        Ok(())
+    }
+
+    pub fn fetch_data(&mut self) -> Result<(), Error> {
+        let Assets { db_client, plugins } = self;
+
+        db_client.transaction(|| {
+            let assets = schema::assets::table.load::<QueryAsset>(db_client)?;
+
+            // create update entry
+            diesel::insert_into(schema::updates::table)
+                .default_values()
+                .execute(db_client)?;
+            let update_id = schema::updates::table
+                .select(schema::updates::id)
+                .order(schema::updates::id.desc())
+                .limit(1)
+                .get_result(db_client)?;
+
+            for asset in assets {
+                let price = plugins.query(&asset.price_query, Price)?;
+                let holdings = plugins.query(&asset.holdings_query, Holdings)?;
+
+                diesel::insert_into(schema::prices::table)
+                    .values(InsertPrices {
+                        update_id,
+                        asset_id: asset.id,
+                        price,
+                    })
+                    .execute(db_client)?;
+
+                diesel::insert_into(schema::holdings::table)
+                    .values(InsertHoldings {
+                        update_id,
+                        asset_id: asset.id,
+                        amount: holdings,
+                    })
+                    .execute(db_client)?;
+            }
+
+            Ok(())
+        })
+    }
+}
 
 #[derive(Debug)]
 pub enum Error {
