@@ -21,9 +21,7 @@ struct Plugin {
 }
 
 impl Plugins {
-    pub fn from_paths<P: AsRef<Path>>(
-        paths: impl Iterator<Item = P>,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn from_paths<P: AsRef<Path>>(paths: impl Iterator<Item = P>) -> Result<Self, PluginError> {
         let plugins = paths
             .map(|ref path| {
                 let mut plugin = Command::new(path.as_ref())
@@ -39,7 +37,8 @@ impl Plugins {
                 )
                 .into_iter::<PluginInfo>()
                 .next()
-                .expect("Plugin sent no info.")?;
+                .expect("Plugin sent no info.")
+                .map_err(|e| PluginError::BadAnswer)?;
 
                 Ok((
                     plugin_info.name.clone(),
@@ -49,7 +48,7 @@ impl Plugins {
                     },
                 ))
             })
-            .collect::<Result<HashMap<String, Plugin>, Box<dyn Error>>>()?;
+            .collect::<Result<HashMap<String, Plugin>, PluginError>>()?;
 
         Ok(Plugins { plugins })
     }
@@ -59,14 +58,14 @@ impl Plugins {
         plugin: &str,
         arguments: &str,
         expected_type: PluginType,
-    ) -> Result<f64, Box<dyn Error>> {
+    ) -> Result<f64, PluginError> {
         let plugin = self
             .plugins
             .get_mut(plugin)
             .ok_or(PluginError::UnknownPlugin)?;
 
         if plugin.meta.plugin_type != expected_type {
-            return Err(PluginError::WrongType.into());
+            return Err(PluginError::WrongType);
         }
 
         let stdin = plugin
@@ -88,11 +87,12 @@ impl Plugins {
         let answer = Deserializer::from_reader(stdout)
             .into_iter::<Result<Answer, assetman_api::Error>>()
             .next()
-            .ok_or(PluginError::BadAnswer)???;
+            .ok_or(PluginError::BadAnswer)?
+            .map_err(|_| PluginError::BadAnswer)??;
         Ok(answer.answer)
     }
 
-    pub fn query(&mut self, query: &str, expected_type: PluginType) -> Result<f64, Box<dyn Error>> {
+    pub fn query(&mut self, query: &str, expected_type: PluginType) -> Result<f64, PluginError> {
         let query_re = Regex::new(r"(.*)\((.*)\)").unwrap();
         let captures = query_re
             .captures(query)
@@ -112,6 +112,7 @@ impl Plugins {
 
 #[derive(Debug)]
 pub enum PluginError {
+    PluginStartupFailed(std::io::Error),
     QueryParseError,
     UnknownPlugin,
     WrongType,
@@ -124,6 +125,18 @@ impl std::error::Error for PluginError {}
 impl Display for PluginError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(self, f)
+    }
+}
+
+impl From<std::io::Error> for PluginError {
+    fn from(e: std::io::Error) -> Self {
+        PluginError::PluginStartupFailed(e)
+    }
+}
+
+impl From<assetman_api::Error> for PluginError {
+    fn from(e: assetman_api::Error) -> Self {
+        PluginError::PluginError(e)
     }
 }
 

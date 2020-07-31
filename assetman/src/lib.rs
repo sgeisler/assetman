@@ -1,16 +1,23 @@
 extern crate chrono;
 extern crate dotenv;
-#[macro_use] extern crate diesel;
-#[macro_use] extern crate diesel_migrations;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 extern crate reqwest;
 extern crate serde_json;
 extern crate textplots;
 
+use diesel::deserialize::Queryable;
 use diesel::prelude::*;
 
+use crate::plugins::{PluginError, Plugins};
+use chrono::NaiveDateTime;
+use diesel::dsl::max;
+use diesel::select;
 use schema::*;
+use std::path::PathBuf;
 
-pub mod alphav;
 mod plugins;
 mod schema;
 
@@ -18,14 +25,35 @@ embed_migrations!();
 
 pub struct Assets {
     db_client: diesel::sqlite::SqliteConnection,
-    av_client: alphav::AlphaVantageClient,
+    plugins: Plugins,
+}
+
+#[derive(Debug)]
+pub struct AssetsCfg {
+    pub db_path: String,
+    pub plugins: Vec<PathBuf>,
+}
+
+#[derive(Debug)]
+pub struct AssetsSnapshot {
+    pub time: chrono::NaiveDateTime,
+    pub assets: Vec<Asset>,
+}
+
+#[derive(Debug, Queryable)]
+pub struct Asset {
+    id: i32,
+    name: String,
+    price: f64,
+    holdings: f64,
+    category: String,
 }
 
 impl Assets {
-    pub fn new(db_path: &str, av_api_key: &str) -> Result<Assets, Error> {
+    pub fn new(cfg: AssetsCfg) -> Result<Assets, Error> {
         let assets = Assets {
-            db_client: diesel::SqliteConnection::establish(db_path)?,
-            av_client: alphav::AlphaVantageClient::new(av_api_key.into()),
+            db_client: diesel::SqliteConnection::establish(&cfg.db_path)?,
+            plugins: Plugins::from_paths(cfg.plugins.iter())?,
         };
 
         assets.run_migrations()?;
@@ -38,192 +66,38 @@ impl Assets {
         Ok(())
     }
 
-    pub fn list_assets(&self) -> diesel::QueryResult<Vec<(i32, String, f32, f32, String)>> {
-        // select
-        //  assets.id
-        //  assets.name,
-        //  updates.amount,
-        //  prices.price
-        // from
-        //  assets join
-        //  updates on assets.id = updates.asset_id join
-        //  prices on assets.id = prices.asset_id
-        // where
-        //  updates.timestamp=(select max(timestamp) from updates where updates.asset_id=assets.id) and
-        //  prices.timestamp=(select max(timestamp) from prices where prices.asset_id=assets.id) and
-        //  updates.amount != 0;
-        schema::assets::table
-            .inner_join(schema::updates::table)
+    pub fn list_assets(&self) -> Result<AssetsSnapshot, Error> {
+        let (last_snapshot, time) = schema::updates::table
+            .select((schema::updates::id, schema::updates::timestamp))
+            .order(schema::updates::timestamp.desc())
+            .limit(1)
+            .get_result::<(i32, String)>(&self.db_client)?;
+
+        let assets = schema::assets::table
+            .inner_join(schema::holdings::table)
             .inner_join(schema::prices::table)
-            .select((schema::assets::id, schema::assets::name, schema::prices::price, schema::updates::holdings, schema::assets::category))
+            .select((
+                schema::assets::id,
+                schema::assets::name,
+                schema::prices::price,
+                schema::holdings::amount,
+                schema::assets::category,
+            ))
             .filter(
-                schema::updates::timestamp.eq(diesel::dsl::sql::<diesel::sql_types::Timestamp>("(SELECT MAX(timestamp) FROM updates WHERE assets.id = updates.asset_id)")).and(
-                    schema::prices::timestamp.eq(diesel::dsl::sql::<diesel::sql_types::Timestamp>("(SELECT MAX(timestamp) FROM prices WHERE assets.id = prices.asset_id)"))
-                ).and(schema::updates::holdings.ne(0.0))
+                schema::prices::update_id
+                    .eq(last_snapshot)
+                    .and(schema::holdings::update_id.eq(last_snapshot)),
             )
             .order_by(schema::assets::name)
-            .load(&self.db_client)
-    }
+            .load::<Asset>(&self.db_client)?;
 
-    pub fn add_asset(&self, name: &str, description: Option<&str>, query: &str, category: Option<&str>) -> Result<Asset, Error> {
-        self.db_client.transaction(|| {
-            let price = self.av_client.query(query)?;
-
-            diesel::insert_into(schema::assets::table)
-                .values(NewAsset {
-                    name,
-                    description,
-                    query,
-                    category,
-                }).execute(&self.db_client)?;
-
-            let asset_id: i32 = schema::assets::table
-                .order(schema::assets::id.desc())
-                .select(schema::assets::id)
-                .first(&self.db_client)?;
-
-            diesel::insert_into(schema::prices::table)
-                .values(NewPriceEntry {
-                    asset_id,
-                    price: price as f32,
-                })
-                .execute(&self.db_client)?;
-
-            diesel::insert_into(schema::updates::table)
-                .values(NewHoldingsEntry {
-                    asset_id,
-                    holdings: 0.0,
-                })
-                .execute(&self.db_client)?;
-
-            Ok(Asset {
-                asset_id,
-                client: &self,
-            })
+        Ok(AssetsSnapshot {
+            time: time.parse().unwrap(),
+            assets,
         })
     }
-
-    pub fn asset(&self, name: &str) -> Result<Asset, Error> {
-        let asset_id: i32 = schema::assets::table
-            .filter(schema::assets::name.eq(name))
-            .select(schema::assets::id)
-            .first(&self.db_client)
-            .optional()?
-            .ok_or(Error::AssetNotFound)?;
-
-        Ok(Asset {
-            asset_id,
-            client: self,
-        })
-    }
-
-    fn update_holdings(&self, asset_id: i32, new_holdings: f32) -> Result<(), Error> {
-        diesel::insert_into(schema::updates::table)
-            .values(NewHoldingsEntry {
-                asset_id,
-                holdings: new_holdings,
-            })
-            .execute(&self.db_client)?;
-        Ok(())
-    }
-
-    pub fn update_prices(&self) -> Result<(), Error> {
-        self.db_client.transaction(|| {
-            let assets: Vec<UpdateAsset> = schema::assets::table
-                .select((
-                    schema::assets::id,
-                    schema::assets::query,
-                    schema::assets::name,
-                ))
-                .load(&self.db_client)?;
-
-            let asset_count = assets.len();
-            for (idx, asset) in assets.into_iter().enumerate() {
-                println!("Fetching price for {:25} ({}/{})", asset.name, idx, asset_count);
-                match self.av_client.query(&asset.query) {
-                    Ok(price) => {
-                        diesel::insert_into(schema::prices::table)
-                            .values(NewPriceEntry {
-                                asset_id: asset.id,
-                                price: price as f32,
-                            })
-                            .execute(&self.db_client)?;
-                    },
-                    Err(e) => {
-                        eprintln!("Skipping {} because of error {:?}", asset.query, e);
-                    },
-                }
-            }
-
-            Ok(())
-        })
-    }
-
-    pub fn plot(&self) {
-        use textplots::Plot;
-        use terminal_size::{Width, Height, terminal_size};
-
-        let time_series = diesel::dsl::sql::<(diesel::sql_types::Timestamp, diesel::sql_types::Float)>(
-                "select ts,
-                       (
-                         select SUM(updates.holdings * prices.price)
-                         from assets
-                                join updates on assets.id = updates.asset_id
-                                join prices on assets.id = prices.asset_id
-                         where updates.timestamp = (select max(timestamp) from updates where updates.asset_id = assets.id and updates.timestamp <= ts)
-                           and prices.timestamp = (select max(timestamp) from prices where prices.asset_id = assets.id and prices.timestamp <= ts)
-                           and updates.holdings != 0
-                       ) as nw
-                from (select prices.timestamp as ts from prices union select updates.timestamp as ts from updates)
-                where nw not null;
-                "
-            )
-            .load(&self.db_client)
-            .unwrap()
-            .into_iter()
-            .skip(5)
-            .map(|(t, v): (chrono::NaiveDateTime, f32)| (t.timestamp() as f32, v))
-            .collect::<Vec<_>>();
-
-        let x_min = time_series
-            .iter()
-            .min_by(|(t1, _), (t2, _)| t1.partial_cmp(t2).unwrap())
-            .unwrap()
-            .0;
-
-        let x_max = time_series
-            .iter()
-            .max_by(|(t1, _), (t2, _)| t1.partial_cmp(t2).unwrap())
-            .unwrap()
-            .0;
-
-        println!("{:?}", terminal_size());
-
-        let (width, height) = if let Some((Width(width), Height(height))) = terminal_size() {
-            (std::cmp::max(width * 3 / 2, 32), std::cmp::max(height * 3, 32))
-        } else {
-            (200, 100)
-        };
-
-        println!("{}, {}", width, height);
-
-        textplots::Chart::new(width as u32, height as u32, x_min, x_max)
-            .lineplot(textplots::Shape::Lines(&time_series))
-            .nice();
-    }
 }
-
-pub struct Asset<'a> {
-    asset_id: i32,
-    client: &'a Assets,
-}
-
-impl<'a> Asset<'a> {
-    pub fn update_holdings(&self, new_holdings: f32) -> Result<(), Error> {
-        self.client.update_holdings(self.asset_id, new_holdings)
-    }
-}
-
+/*
 #[derive(Insertable)]
 #[table_name = "assets"]
 struct NewAsset<'a> {
@@ -252,7 +126,7 @@ struct UpdateAsset {
     id: i32,
     query: String,
     name: String,
-}
+}*/
 
 #[derive(Debug)]
 pub enum Error {
@@ -260,13 +134,7 @@ pub enum Error {
     DatabaseConnectionError(diesel::ConnectionError),
     DatabaseError(diesel::result::Error),
     DatabaseMigrationError(diesel_migrations::RunMigrationsError),
-    AlphaVantageError(alphav::AlphaVantageError),
-}
-
-impl From<alphav::AlphaVantageError> for Error {
-    fn from(e: alphav::AlphaVantageError) -> Self {
-        Error::AlphaVantageError(e)
-    }
+    PluginError(PluginError),
 }
 
 impl From<diesel::result::Error> for Error {
@@ -287,55 +155,8 @@ impl From<diesel_migrations::RunMigrationsError> for Error {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use diesel::{QueryDsl, RunQueryDsl};
-    use std::thread::sleep;
-    use std::time::Duration;
-    use crate::schema::*;
-
-    #[test]
-    fn add_assets() {
-        dotenv::dotenv().ok();
-
-        let api_token = std::env::var("ALPHA_VANTAGE_KEY")
-            .expect("ALPHA_VANTAGE_KEY must be set");
-
-        let assets = super::Assets::new(":memory:", &api_token).unwrap();
-        crate::embedded_migrations::run(&assets.db_client).unwrap();
-
-        let siemens_ref = assets.add_asset(
-            "Siemens",
-            None,
-            "stock/SIE/EUR",
-            Some("stock")
-        ).unwrap();
-
-        let asset_list = assets.list_assets().unwrap();
-        assert_eq!(asset_list.len(), 1);
-        let siemens = asset_list.first().unwrap();
-        assert_eq!(siemens.0, 1);
-        assert_eq!(siemens.1, "Siemens");
-        assert_eq!(siemens.3, 0.0);
-
-        sleep(Duration::from_secs(1));
-
-        siemens_ref.update_holdings(2.0).unwrap();
-        let asset_list = assets.list_assets().unwrap();
-        assert_eq!(asset_list.len(), 1);
-        let siemens = asset_list.first().unwrap();
-        assert_eq!(siemens.3, 2.0);
-
-        let price_updates: i64 = prices::table
-            .select(diesel::dsl::count_star())
-            .get_result(&assets.db_client)
-            .unwrap();
-        assert_eq!(price_updates, 1);
-        assets.update_prices();
-        let price_updates: i64 = prices::table
-            .select(diesel::dsl::count_star())
-            .get_result(&assets.db_client)
-            .unwrap();
-        assert_eq!(price_updates, 2);
+impl From<PluginError> for Error {
+    fn from(e: PluginError) -> Self {
+        Error::PluginError(e)
     }
 }

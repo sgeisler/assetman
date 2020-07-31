@@ -2,29 +2,37 @@ table! {
     assets {
         id -> Integer,
         name -> Text,
-        description -> Nullable<Text>,
-        query -> Text,
+        price_query -> Text,
+        holdings_query -> Text,
         category -> Text,
     }
 }
 
 table! {
-    updates (asset_id, timestamp) {
-        asset_id -> Integer,
+    updates {
+        id -> Integer,
         timestamp -> Timestamp,
-        holdings -> Float,
     }
 }
 
 table! {
-    prices (asset_id, timestamp) {
+    holdings (update_id, asset_id) {
+        update_id -> Integer,
         asset_id -> Integer,
-        timestamp -> Timestamp,
-        price -> Float,
+        amount -> Double,
     }
 }
 
-joinable!(updates -> assets (asset_id));
-joinable!(prices -> assets (asset_id));
-allow_tables_to_appear_in_same_query!(assets, prices, updates);
+table! {
+    prices (update_id, asset_id) {
+        update_id -> Integer,
+        asset_id -> Integer,
+        price -> Double,
+    }
+}
 
+joinable!(prices -> updates (update_id));
+joinable!(prices -> assets (asset_id));
+joinable!(holdings -> updates (update_id));
+joinable!(holdings -> assets (asset_id));
+allow_tables_to_appear_in_same_query!(assets, prices, holdings);
