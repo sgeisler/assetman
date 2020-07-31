@@ -43,11 +43,11 @@ pub struct AssetsSnapshot {
 
 #[derive(Debug, Queryable)]
 pub struct Asset {
-    id: i32,
-    name: String,
-    price: f64,
-    holdings: f64,
-    category: String,
+    pub id: i32,
+    pub name: String,
+    pub price: f64,
+    pub holdings: f64,
+    pub category: String,
 }
 
 #[derive(Debug, Insertable)]
@@ -127,7 +127,7 @@ impl Assets {
             .load::<Asset>(&self.db_client)?;
 
         Ok(AssetsSnapshot {
-            time: time.parse().unwrap(),
+            time: NaiveDateTime::parse_from_str(&time, "%Y-%m-%d %H:%M:%S").unwrap(),
             assets,
         })
     }
