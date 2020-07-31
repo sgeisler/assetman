@@ -1,9 +1,16 @@
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Debug};
 use serde::export::Formatter;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
 
-pub mod holdings;
-pub mod price;
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Request {
+    pub arguments: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Answer {
+    pub answer: f64,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Error {
@@ -17,4 +24,17 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(self, f)
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PluginInfo {
+    pub name: String,
+    pub plugin_type: PluginType,
+    pub description: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum PluginType {
+    Holdings,
+    Price,
 }

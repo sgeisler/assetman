@@ -7,9 +7,9 @@ fn main() {
     let mut stdin = stdin();
 
     let info = PluginInfo {
-        name: "static_h".to_string(),
-        plugin_type: PluginType::Holdings,
-        description: "Returns the static holdings amount given as argument".to_string(),
+        name: "static_p".to_string(),
+        plugin_type: PluginType::Price,
+        description: "Returns a static price given as single argument".to_string(),
     };
     to_writer(&mut stdout, &info).unwrap();
     stdout.flush().unwrap();
@@ -23,12 +23,12 @@ fn main() {
                     description: format!("Input parsing error: {:?}", e),
                 })?;
 
-                let amt = req.arguments.parse().map_err(|e| assetman_api::Error {
+                let price = req.arguments.parse().map_err(|e| assetman_api::Error {
                     code: 2,
-                    description: format!("Amount parsing error: {:?}", e),
+                    description: format!("Price parsing error: {:?}", e),
                 })?;
 
-                Ok(Answer { answer: amt })
+                Ok(Answer { answer: price })
             },
         )
         .for_each(|resp| {
