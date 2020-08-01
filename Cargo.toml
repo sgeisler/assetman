@@ -2,6 +2,7 @@
 
 members = [
     "assetman",
+    "plugins/assetman-bitcoin-holdings",
     "plugins/assetman-static-holdings",
     "plugins/assetman-static-price"
 ]
