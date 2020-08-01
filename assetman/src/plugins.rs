@@ -93,7 +93,7 @@ impl Plugins {
     }
 
     pub fn query(&mut self, query: &str, expected_type: PluginType) -> Result<f64, PluginError> {
-        let query_re = Regex::new(r"(.*)\((.*)\)").unwrap();
+        let query_re = Regex::new(r"([^(]*)\((.*)\)").unwrap();
         let captures = query_re
             .captures(query)
             .ok_or(PluginError::QueryParseError)?;
