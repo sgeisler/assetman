@@ -37,4 +37,5 @@ pub struct PluginInfo {
 pub enum PluginType {
     Holdings,
     Price,
+    Any,
 }

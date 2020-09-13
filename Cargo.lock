@@ -93,6 +93,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "assetman-csv-scan"
+version = "0.1.0"
+dependencies = [
+ "assetman-api",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "assetman-static-holdings"
 version = "0.1.0"
 dependencies = [

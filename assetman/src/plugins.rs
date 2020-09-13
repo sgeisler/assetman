@@ -64,7 +64,7 @@ impl Plugins {
             .get_mut(plugin)
             .ok_or(PluginError::UnknownPlugin)?;
 
-        if plugin.meta.plugin_type != expected_type {
+        if plugin.meta.plugin_type != PluginType::Any && plugin.meta.plugin_type != expected_type {
             return Err(PluginError::WrongType);
         }
 
