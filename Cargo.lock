@@ -102,6 +102,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "assetman-metal-price"
+version = "0.1.0"
+dependencies = [
+ "assetman-api",
+ "reqwest 0.10.8",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "assetman-static-holdings"
 version = "0.1.0"
 dependencies = [
