@@ -47,6 +47,8 @@ enum Commands {
 
 fn main() {
     dotenv::dotenv().ok();
+    pretty_env_logger::init();
+
     let options = Options::from_args();
 
     let mut assets = assetman::Assets::new(AssetsCfg::from_env().unwrap()).unwrap();

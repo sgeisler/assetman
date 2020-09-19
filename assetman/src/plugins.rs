@@ -1,4 +1,5 @@
 use assetman_api::{Answer, PluginInfo, PluginType, Request};
+use log::info;
 use regex::Regex;
 use serde::export::Formatter;
 use serde_json::de::Deserializer;
@@ -21,9 +22,12 @@ struct Plugin {
 }
 
 impl Plugins {
-    pub fn from_paths<P: AsRef<Path>>(paths: impl Iterator<Item = P>) -> Result<Self, PluginError> {
+    pub fn from_paths<P: AsRef<Path> + Debug>(
+        paths: impl Iterator<Item = P>,
+    ) -> Result<Self, PluginError> {
         let plugins = paths
             .map(|ref path| {
+                info!("Loading plugin {:?}", path);
                 let mut plugin = Command::new(path.as_ref())
                     .stdin(Stdio::piped())
                     .stdout(Stdio::piped())
@@ -39,6 +43,8 @@ impl Plugins {
                 .next()
                 .expect("Plugin sent no info.")
                 .map_err(|e| PluginError::BadAnswer)?;
+
+                info!("Loaded plugin '{}'", &plugin_info.name);
 
                 Ok((
                     plugin_info.name.clone(),
@@ -59,6 +65,8 @@ impl Plugins {
         arguments: &str,
         expected_type: PluginType,
     ) -> Result<f64, PluginError> {
+        info!("Querying plugin {}: {}", plugin, arguments);
+
         let plugin = self
             .plugins
             .get_mut(plugin)
