@@ -1,5 +1,5 @@
 [package]
-name = "assetman-static-price"
+name = "assetman-static"
 version = "0.1.0"
 authors = ["Sebastian Geisler <sebastian@blockstream.io>"]
 edition = "2018"

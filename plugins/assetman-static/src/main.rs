@@ -7,9 +7,9 @@ fn main() {
     let mut stdin = stdin();
 
     let info = PluginInfo {
-        name: "static_h".to_string(),
-        plugin_type: PluginType::Holdings,
-        description: "Returns the static holdings amount given as argument".to_string(),
+        name: "static".to_string(),
+        plugin_type: PluginType::Any,
+        description: "Returns the static amount given as argument".to_string(),
     };
     to_writer(&mut stdout, &info).unwrap();
     stdout.flush().unwrap();
