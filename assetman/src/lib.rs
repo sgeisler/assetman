@@ -6,7 +6,6 @@ extern crate diesel;
 extern crate diesel_migrations;
 extern crate reqwest;
 extern crate serde_json;
-extern crate textplots;
 
 use diesel::deserialize::Queryable;
 use diesel::prelude::*;

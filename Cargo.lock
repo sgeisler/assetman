@@ -63,7 +63,6 @@ dependencies = [
  "serde_json",
  "structopt",
  "terminal_size",
- "textplots",
 ]
 
 [[package]]
@@ -494,12 +493,6 @@ name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
-
-[[package]]
-name = "drawille"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81e127c19c76f5610bb32f6a5f5d1ce5a5374fedba554f05cf5599e3041cd634"
 
 [[package]]
 name = "dtoa"
@@ -2051,15 +2044,6 @@ checksum = "9a14cd9f8c72704232f0bfc8455c0e861f0ad4eb60cc9ec8a170e231414c1e13"
 dependencies = [
  "libc",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "textplots"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3973bffaf1f4985f443078562c6a9e8597d85a24db0d83eff4554c99721c5250"
-dependencies = [
- "drawille",
 ]
 
 [[package]]
