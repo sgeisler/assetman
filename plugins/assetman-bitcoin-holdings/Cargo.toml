@@ -10,5 +10,7 @@ edition = "2018"
 assetman-api = { path = "../../assetman-api" }
 dotenv = "0.15.0"
 electrum-client = { git = "https://github.com/sgeisler/rust-electrum-client", branch = "2020-08-descriptor-balance", features = ["aggregation"] }
+log = "0.4.11"
+pretty_env_logger = "0.4.0"
 serde = "1.0.114"
 serde_json = "1.0.57"

@@ -1,10 +1,13 @@
 use assetman_api::{Answer, PluginInfo, PluginType, Request};
 use electrum_client::bitcoin::util::bip32::ChildNumber;
 use electrum_client::ElectrumApi;
+use log::debug;
 use serde_json::{de::Deserializer, to_writer};
 use std::io::{stdin, stdout, Write};
 
 fn main() {
+    pretty_env_logger::init();
+
     let mut stdout = stdout();
     let mut stdin = stdin();
 
@@ -38,6 +41,7 @@ fn main() {
                     .map(|descriptor| {
                         let descriptor = descriptor.parse().expect("Invalid descriptor");
 
+                        debug!("Querying BTC account {} (external)", descriptor);
                         let external = electrum
                             .descriptor_balance(
                                 &descriptor,
@@ -47,6 +51,7 @@ fn main() {
                             )
                             .unwrap();
 
+                        debug!("Querying BTC account {} (internal)", descriptor);
                         let internal = electrum
                             .descriptor_balance(
                                 &descriptor,

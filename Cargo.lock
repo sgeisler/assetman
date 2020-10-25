@@ -79,6 +79,8 @@ dependencies = [
  "assetman-api",
  "dotenv 0.15.0",
  "electrum-client",
+ "log",
+ "pretty_env_logger",
  "serde",
  "serde_json",
 ]
