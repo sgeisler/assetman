@@ -1,5 +1,4 @@
 use assetman_api::{Answer, PluginInfo, PluginType, Request};
-use electrum_client::bitcoin::util::bip32::ChildNumber;
 use electrum_client::ElectrumApi;
 use log::debug;
 use serde_json::{de::Deserializer, to_writer};
@@ -12,7 +11,7 @@ fn main() {
     let mut stdin = stdin();
 
     let electrum_addr = dotenv::var("AM_ELECTRUM_SERVER").expect("AM_ELECTRUM_SERVER not set!");
-    let electrum = electrum_client::Client::new(&electrum_addr, None).unwrap();
+    let electrum = electrum_client::Client::new(&electrum_addr).unwrap();
 
     let gap_limit: usize = dotenv::var("AM_GAP_LIMIT")
         .map(|s| s.parse().expect("malformed gap limit"))
@@ -39,26 +38,23 @@ fn main() {
                     .arguments
                     .split(",")
                     .map(|descriptor| {
-                        let descriptor = descriptor.parse().expect("Invalid descriptor");
+                        let descriptor_ext = descriptor
+                            .replace("*", "0/*")
+                            .parse()
+                            .expect("Invalid descriptor");
+                        let descriptor_int = descriptor
+                            .replace("*", "1/*")
+                            .parse()
+                            .expect("Invalid descriptor");
 
                         debug!("Querying BTC account {} (external)", descriptor);
                         let external = electrum
-                            .descriptor_balance(
-                                &descriptor,
-                                vec![ChildNumber::from_normal_idx(0).unwrap()].into(),
-                                gap_limit,
-                                false,
-                            )
+                            .descriptor_balance(&descriptor_ext, gap_limit, false)
                             .unwrap();
 
                         debug!("Querying BTC account {} (internal)", descriptor);
                         let internal = electrum
-                            .descriptor_balance(
-                                &descriptor,
-                                vec![ChildNumber::from_normal_idx(1).unwrap()].into(),
-                                gap_limit,
-                                false,
-                            )
+                            .descriptor_balance(&descriptor_int, gap_limit, false)
                             .unwrap();
 
                         internal + external

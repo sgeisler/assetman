@@ -4,7 +4,6 @@ extern crate dotenv;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
-extern crate reqwest;
 extern crate serde_json;
 
 use diesel::deserialize::Queryable;
