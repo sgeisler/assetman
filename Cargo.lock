@@ -64,6 +64,7 @@ dependencies = [
  "dotenv",
  "electrum-client",
  "log",
+ "miniscript",
  "pretty_env_logger",
  "serde",
  "serde_json",

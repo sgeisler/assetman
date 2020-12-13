@@ -1,6 +1,8 @@
 use assetman_api::{Answer, PluginInfo, PluginType, Request};
-use electrum_client::ElectrumApi;
+use electrum_client::{Descriptor, ElectrumApi};
 use log::debug;
+use miniscript::bitcoin::util::bip32::ChildNumber;
+use miniscript::descriptor::{DescriptorPublicKey, DescriptorXKey};
 use serde_json::{de::Deserializer, to_writer};
 use std::io::{stdin, stdout, Write};
 
@@ -38,14 +40,25 @@ fn main() {
                     .arguments
                     .split(",")
                     .map(|descriptor| {
-                        let descriptor_ext = descriptor
-                            .replace("*", "0/*")
-                            .parse()
+                        let descriptor_base = descriptor
+                            .parse::<Descriptor>()
                             .expect("Invalid descriptor");
-                        let descriptor_int = descriptor
-                            .replace("*", "1/*")
-                            .parse()
-                            .expect("Invalid descriptor");
+
+                        let derive_ext =
+                            |pk: &DescriptorPublicKey| -> Result<DescriptorPublicKey, ()> {
+                                Ok(derive_normal_chain(pk, 0))
+                            };
+                        let descriptor_ext = descriptor_base
+                            .translate_pk(derive_ext, derive_ext)
+                            .expect("Transformation can't fail");
+
+                        let derive_int =
+                            |pk: &DescriptorPublicKey| -> Result<DescriptorPublicKey, ()> {
+                                Ok(derive_normal_chain(pk, 1))
+                            };
+                        let descriptor_int = descriptor_base
+                            .translate_pk(derive_int, derive_int)
+                            .expect("Transformation can't fail");
 
                         debug!("Querying BTC account {} (external)", descriptor);
                         let external = electrum
@@ -70,4 +83,18 @@ fn main() {
             to_writer(&mut stdout, &resp).unwrap();
             stdout.flush().unwrap();
         });
+}
+
+fn derive_normal_chain(pk: &DescriptorPublicKey, idx: u32) -> DescriptorPublicKey {
+    match pk.clone() {
+        DescriptorPublicKey::XPub(xpk) if xpk.is_wildcard => {
+            DescriptorPublicKey::XPub(DescriptorXKey {
+                derivation_path: xpk
+                    .derivation_path
+                    .child(ChildNumber::Normal { index: idx }),
+                ..xpk
+            })
+        }
+        pk => pk,
+    }
 }
