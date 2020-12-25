@@ -38,7 +38,7 @@ fn main() {
 
                 let amount_sat = req
                     .arguments
-                    .split(",")
+                    .split(";")
                     .map(|descriptor| {
                         let descriptor_base = descriptor
                             .parse::<Descriptor>()
