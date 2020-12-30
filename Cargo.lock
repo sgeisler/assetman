@@ -383,7 +383,7 @@ checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 [[package]]
 name = "electrum-client"
 version = "0.4.0-beta.1"
-source = "git+https://github.com/sgeisler/rust-electrum-client?branch=2020-08-descriptor-balance#64e0ec5c76b2f6b41ae22a3f6887e5bd9da4c587"
+source = "git+https://github.com/sgeisler/rust-electrum-client?branch=assetman#679d9cee35f4aa1d47cdb1d1b7003068b102ccd5"
 dependencies = [
  "bitcoin",
  "log",

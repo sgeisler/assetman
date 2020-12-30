@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 assetman-api = { path = "../../assetman-api" }
 dotenv = "0.15.0"
-electrum-client = { git = "https://github.com/sgeisler/rust-electrum-client", branch = "2020-08-descriptor-balance", features = ["aggregation"] }
+electrum-client = { git = "https://github.com/sgeisler/rust-electrum-client", branch = "assetman", features = ["aggregation"] }
 log = "0.4.11"
 miniscript = "4"
 pretty_env_logger = "0.4.0"
