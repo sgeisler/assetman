@@ -62,12 +62,12 @@ fn main() {
 
                         debug!("Querying BTC account {} (external)", descriptor);
                         let external = electrum
-                            .descriptor_balance(&descriptor_ext, gap_limit, 100, false)
+                            .descriptor_balance(&descriptor_ext, gap_limit, 10, false)
                             .unwrap();
 
                         debug!("Querying BTC account {} (internal)", descriptor);
                         let internal = electrum
-                            .descriptor_balance(&descriptor_int, gap_limit, 100, false)
+                            .descriptor_balance(&descriptor_int, gap_limit, 10, false)
                             .unwrap();
 
                         internal + external
