@@ -6,6 +6,7 @@ extern crate structopt;
 
 use assetman::AssetsCfg;
 use std::collections::btree_set::BTreeSet;
+use std::process::exit;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -73,7 +74,10 @@ fn main() {
         } => {
             let mut asset_list = assets
                 .list_assets()
-                .expect("Error: could not list assets.")
+                .unwrap_or_else(|_| {
+                    println!("No assets in database yet or no data was fetched yet, add asssets or fetch prices.");
+                    exit(0);
+                })
                 .assets;
 
             if order_by_value {
