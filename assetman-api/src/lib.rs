@@ -1,6 +1,5 @@
-use serde::export::Formatter;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Request {

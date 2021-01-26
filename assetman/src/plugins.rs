@@ -1,12 +1,10 @@
 use assetman_api::{Answer, PluginInfo, PluginType, Request};
 use log::info;
 use regex::Regex;
-use serde::export::Formatter;
 use serde_json::de::Deserializer;
 use serde_json::to_writer;
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
@@ -42,7 +40,7 @@ impl Plugins {
                 .into_iter::<PluginInfo>()
                 .next()
                 .expect("Plugin sent no info.")
-                .map_err(|e| PluginError::BadAnswer)?;
+                .map_err(|_| PluginError::BadAnswer)?;
 
                 info!("Loaded plugin '{}'", &plugin_info.name);
 
@@ -90,7 +88,7 @@ impl Plugins {
         let req = Request {
             arguments: arguments.to_string(),
         };
-        to_writer(stdin, &req);
+        to_writer(stdin, &req).expect("Write error");
 
         let answer = Deserializer::from_reader(stdout)
             .into_iter::<Result<Answer, assetman_api::Error>>()

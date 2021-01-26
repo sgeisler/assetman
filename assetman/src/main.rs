@@ -4,7 +4,7 @@ extern crate dotenv;
 extern crate prettytable;
 extern crate structopt;
 
-use assetman::{AssetsCfg, Error};
+use assetman::AssetsCfg;
 use std::collections::btree_set::BTreeSet;
 use structopt::StructOpt;
 

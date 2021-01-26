@@ -6,14 +6,11 @@ extern crate diesel;
 extern crate diesel_migrations;
 extern crate serde_json;
 
-use diesel::deserialize::Queryable;
 use diesel::prelude::*;
 
 use crate::plugins::{PluginError, Plugins};
 use assetman_api::PluginType::{Holdings, Price};
 use chrono::NaiveDateTime;
-use diesel::dsl::max;
-use diesel::select;
 use schema::*;
 use std::path::PathBuf;
 

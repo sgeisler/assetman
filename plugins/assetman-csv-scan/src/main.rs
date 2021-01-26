@@ -46,7 +46,7 @@ fn main() {
                     code: 5,
                     description: format!("Input parsing error: can't open file: {:?}", e),
                 })?;
-                let mut reader = BufReader::new(file);
+                let reader = BufReader::new(file);
                 for line in reader.lines() {
                     let line = line.map_err(|e| assetman_api::Error {
                         code: 6,
