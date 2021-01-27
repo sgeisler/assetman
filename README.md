@@ -35,6 +35,8 @@ plugins are buggy or depend on external services that might error but work the n
 * `list` Lists all assets/accounts with their prices and total value. There are two options: `-c` group by category and
 `-v` sort by value. If used together the categories aren't explicitly sorted again currently.
 
+![Usage example](example.png)
+
 ## Plugins
 
 The plugin API is quite primitive and too stringly typed for my taste, but I needed the flexibility. I hope to refactor
