@@ -58,5 +58,7 @@ except if you pay me for it). Some ideas for future expansion:
 * Make the plugin API more semantic (precursor for the next idea imo) 
 * Make price queries chainable, so e.g. `XAU/USD -> USD/EUR` will effectively become `XAU/EUR` so that not-directly-supported
 currencies can be used as base currency
+* Implement plotting again
+* Add systemd user timer unit file to automatically run fetch every day
 
 There's no code of conduct, just don't be a jerk or you'll be shown the door.
