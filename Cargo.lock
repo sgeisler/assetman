@@ -39,6 +39,7 @@ dependencies = [
  "diesel",
  "diesel_migrations",
  "dotenv",
+ "itertools",
  "log",
  "pretty_env_logger",
  "prettytable-rs",
@@ -381,6 +382,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
+name = "either"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+
+[[package]]
 name = "electrum-client"
 version = "0.4.0-beta.1"
 source = "git+https://github.com/sgeisler/rust-electrum-client?branch=assetman#679d9cee35f4aa1d47cdb1d1b7003068b102ccd5"
@@ -698,6 +705,15 @@ name = "ipnet"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
+
+[[package]]
+name = "itertools"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37d572918e350e82412fe766d24b15e6682fb2ed2bbe018280caa810397cb319"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itoa"

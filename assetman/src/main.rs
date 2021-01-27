@@ -5,7 +5,9 @@ extern crate prettytable;
 extern crate structopt;
 
 use assetman::AssetsCfg;
+use itertools::Itertools;
 use std::collections::btree_set::BTreeSet;
+use std::iter::once;
 use std::process::exit;
 use structopt::StructOpt;
 
@@ -150,10 +152,17 @@ fn main() {
 }
 
 fn format_money(amount: f64) -> String {
-    let mut base = format!("{:.2}", amount);
-    if base.len() > 6 {
-        base.insert(base.len() - 6, '\'');
-    }
-
-    base
+    let base = format!("{:.2}", amount);
+    let mut rev_chunked = base[..base.len() - 6]
+        .chars()
+        .rev()
+        .chunks(3)
+        .into_iter()
+        .flat_map(|chunk| once('\'').chain(chunk))
+        .collect::<Vec<_>>();
+    rev_chunked
+        .into_iter()
+        .rev()
+        .chain(base[base.len() - 6..].chars())
+        .collect()
 }
