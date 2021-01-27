@@ -153,16 +153,20 @@ fn main() {
 
 fn format_money(amount: f64) -> String {
     let base = format!("{:.2}", amount);
-    let mut rev_chunked = base[..base.len() - 6]
-        .chars()
-        .rev()
-        .chunks(3)
-        .into_iter()
-        .flat_map(|chunk| once('\'').chain(chunk))
-        .collect::<Vec<_>>();
-    rev_chunked
-        .into_iter()
-        .rev()
-        .chain(base[base.len() - 6..].chars())
-        .collect()
+    if base.len() > 6 {
+        let rev_chunked = base[..base.len() - 6]
+            .chars()
+            .rev()
+            .chunks(3)
+            .into_iter()
+            .flat_map(|chunk| once('\'').chain(chunk))
+            .collect::<Vec<_>>();
+        rev_chunked
+            .into_iter()
+            .rev()
+            .chain(base[base.len() - 6..].chars())
+            .collect()
+    } else {
+        base
+    }
 }
