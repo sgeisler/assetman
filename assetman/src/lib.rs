@@ -116,7 +116,8 @@ impl Assets {
             .filter(
                 schema::prices::update_id
                     .eq(last_snapshot)
-                    .and(schema::holdings::update_id.eq(last_snapshot)),
+                    .and(schema::holdings::update_id.eq(last_snapshot))
+                    .and(schema::holdings::amount.ne(0f64)),
             )
             .order_by(schema::assets::name)
             .load::<Asset>(&self.db_client)?;
